@@ -1,0 +1,4 @@
+__pycache__/
+/dataset1
+/dataset2
+*.csv
