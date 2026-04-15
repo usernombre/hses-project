@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .data import load_cleartext, load_trace, trace_paths
+from .data import align_trace_with_clock, list_files, load_cleartext, load_trace
 
 AES_SBOX = np.array(
     [
@@ -44,6 +44,7 @@ class ByteResult:
     sample_index: int
     second_best_guess: int
     second_best_abs_correlation: float
+    confidence_margin: float
 
 def leakage_model(plaintext_byte_column: np.ndarray, key_guess: int) -> np.ndarray:
     """Predict Hamming-weight leakage for one byte guess after first-round AES SBox."""
@@ -65,16 +66,24 @@ def pearson_against_trace_matrix(model_values: np.ndarray, trace_matrix: np.ndar
 
 def attack_one_byte(plaintext_column: np.ndarray, trace_matrix: np.ndarray, byte_index: int) -> ByteResult:
     """Run CPA for one key byte and return best and second-best guesses."""
-    best_scores = np.zeros(256, dtype=np.float32)
-    best_samples = np.zeros(256, dtype=np.int32)
+    guesses = np.arange(256, dtype=np.uint8)
+    sbox_in = np.bitwise_xor(plaintext_column[:, None], guesses[None, :])
+    models = HAMMING_WEIGHT[AES_SBOX[sbox_in]].astype(np.float32)
 
-    for guess in range(256):
-        model = leakage_model(plaintext_column, guess)
-        corr = pearson_against_trace_matrix(model, trace_matrix)
-        abs_corr = np.abs(corr)
-        best_sample = int(np.argmax(abs_corr))
-        best_samples[guess] = best_sample
-        best_scores[guess] = float(abs_corr[best_sample])
+    models_centered = models - models.mean(axis=0, keepdims=True)
+    trace_centered = trace_matrix - trace_matrix.mean(axis=0, keepdims=True)
+
+    numerator = models_centered.T @ trace_centered
+    model_energy = np.sum(models_centered * models_centered, axis=0)
+    trace_energy = np.sum(trace_centered * trace_centered, axis=0)
+    denom = np.sqrt(np.outer(model_energy, trace_energy))
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        corr = np.divide(numerator, denom, out=np.zeros_like(numerator), where=denom > 0)
+
+    abs_corr = np.abs(corr)
+    best_samples = np.argmax(abs_corr, axis=1).astype(np.int32)
+    best_scores = abs_corr[np.arange(256), best_samples].astype(np.float32)
 
     order = np.argsort(best_scores)[::-1]
     first = int(order[0])
@@ -87,13 +96,15 @@ def attack_one_byte(plaintext_column: np.ndarray, trace_matrix: np.ndarray, byte
         sample_index=int(best_samples[first]),
         second_best_guess=second,
         second_best_abs_correlation=float(best_scores[second]),
+        confidence_margin=float(best_scores[first] - best_scores[second]),
     )
 
 def recover_key(dataset_dir: Path) -> tuple[np.ndarray, pd.DataFrame]:
     """Recover full 16-byte AES key from dataset trace files and cleartexts."""
     cleartext_path = dataset_dir / "cleartext.txt"
     cleartext = load_cleartext(cleartext_path)
-    traces = trace_paths(dataset_dir)
+    traces = list_files(dataset_dir, "trace")
+    clocks = list_files(dataset_dir, "clock")
 
     if len(traces) < 16:
         raise ValueError(f"Expected 16 trace files, found {len(traces)}")
@@ -104,6 +115,9 @@ def recover_key(dataset_dir: Path) -> tuple[np.ndarray, pd.DataFrame]:
     for byte_idx in range(16):
         print(f"Processing byte {byte_idx:2d}")
         trace_matrix = load_trace(traces[byte_idx])
+        if len(clocks) > byte_idx:
+            clock_matrix = load_trace(clocks[byte_idx])
+            trace_matrix = align_trace_with_clock(trace_matrix, clock_matrix)
         if trace_matrix.shape[0] != cleartext.shape[0]:
             raise ValueError(
                 f"Trace rows ({trace_matrix.shape[0]}) do not match cleartext rows ({cleartext.shape[0]})"
@@ -111,7 +125,11 @@ def recover_key(dataset_dir: Path) -> tuple[np.ndarray, pd.DataFrame]:
         result = attack_one_byte(cleartext[:, byte_idx], trace_matrix, byte_idx)
         results.append(result)
         key[byte_idx] = np.uint8(result.key_guess)
-        print(f"    key=0x{result.key_guess:02x}  confidence={result.max_abs_correlation:.4f}")
+        print(
+            f"    key=0x{result.key_guess:02x}  "
+            f"confidence={result.max_abs_correlation:.4f}  "
+            f"margin={result.confidence_margin:.4f}"
+        )
 
     df = pd.DataFrame(
         {
@@ -123,6 +141,7 @@ def recover_key(dataset_dir: Path) -> tuple[np.ndarray, pd.DataFrame]:
             "second_best_guess_dec": [r.second_best_guess for r in results],
             "second_best_guess_hex": [f"0x{r.second_best_guess:02x}" for r in results],
             "second_best_abs_correlation": [r.second_best_abs_correlation for r in results],
+            "confidence_margin": [r.confidence_margin for r in results],
         }
     )
 

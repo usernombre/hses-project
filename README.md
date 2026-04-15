@@ -17,3 +17,9 @@ python -m pip install -r requirements.txt
 ```bash
 python -m cpa_aes.cli --dataset-dir dataset1 --output-csv outputs/dataset1_cpa_results.csv
 ```
+
+## Run on dataset2
+
+```bash
+python -m cpa_aes.cli --dataset-dir dataset2 --output-csv outputs/dataset2_cpa_results.csv
+```
