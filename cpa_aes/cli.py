@@ -11,10 +11,10 @@ def run_cli():
     parser.add_argument("--output-csv", type=Path, required=True, help="Where to save per-byte CPA scores",)
     args = parser.parse_args()
 
-    key, df = recover_key(args.dataset_dir)
+    key, output_dataset = recover_key(args.dataset_dir)
 
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(args.output_csv, index=False)
+    output_dataset.to_csv(args.output_csv, index=False)
 
     key_hex = " ".join(f"{b:02x}" for b in key)
     print(f"Recovered key: {bytes(key)}")
