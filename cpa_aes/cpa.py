@@ -99,12 +99,14 @@ def attack_one_byte(plaintext_column: np.ndarray, trace_matrix: np.ndarray, byte
         confidence_margin=float(best_scores[first] - best_scores[second]),
     )
 
-def recover_key(dataset_dir: Path) -> tuple[np.ndarray, pd.DataFrame]:
+def recover_key(dataset_dir: Path, clock_present: bool) -> tuple[np.ndarray, pd.DataFrame]:
     """Recover full 16-byte AES key from dataset trace files and cleartexts."""
     cleartext_path = dataset_dir / "cleartext.txt"
     cleartext = load_cleartext(cleartext_path)
     traces = list_files(dataset_dir, "trace")
-    clocks = list_files(dataset_dir, "clock")
+    clocks = None
+    if clock_present:
+        clocks = list_files(dataset_dir, "clock")
 
     if len(traces) < 16:
         raise ValueError(f"Expected 16 trace files, found {len(traces)}")
@@ -115,7 +117,8 @@ def recover_key(dataset_dir: Path) -> tuple[np.ndarray, pd.DataFrame]:
     for byte_idx in range(16):
         print(f"Processing byte {byte_idx:2d}")
         trace_matrix = load_trace(traces[byte_idx])
-        if len(clocks) > byte_idx:
+        if clock_present:
+            print("Taking into accout the clock for computations")
             clock_matrix = load_trace(clocks[byte_idx])
             trace_matrix = align_trace_with_clock(trace_matrix, clock_matrix)
         if trace_matrix.shape[0] != cleartext.shape[0]:

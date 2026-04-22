@@ -9,9 +9,10 @@ def run_cli():
     parser = argparse.ArgumentParser(description="Run CPA key recovery for AES dataset")
     parser.add_argument("--dataset-dir", type=Path, required=True, help="Path to dataset directory")
     parser.add_argument("--output-csv", type=Path, required=True, help="Where to save per-byte CPA scores",)
+    parser.add_argument('--clock', action='store_true', help="Set whether the clock traces are present")
     args = parser.parse_args()
 
-    key, output_dataset = recover_key(args.dataset_dir)
+    key, output_dataset = recover_key(args.dataset_dir, args.clock)
 
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
     output_dataset.to_csv(args.output_csv, index=False)

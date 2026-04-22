@@ -17,8 +17,8 @@ def list_files(dataset_dir: Path, prefix: str) -> list[Path]:
         if match:
             files.append((int(match.group(1)), path))
 
-    if not files and not_found_message is not None:
-        raise FileNotFoundError(not_found_message)
+    if not files:
+        raise FileNotFoundError(f"Could not find {prefix} txt files")
 
     files.sort(key=lambda item: item[0])
     return [path for _, path in files]
