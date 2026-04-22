@@ -118,7 +118,6 @@ def recover_key(dataset_dir: Path, clock_present: bool) -> tuple[np.ndarray, pd.
     for byte_idx in range(16):
         print(f"Processing byte {byte_idx:2d}")
         trace_matrix = load_trace(traces[byte_idx])
-        print(trace_matrix)
         if clock_present:
             clock_matrix = load_trace(clocks[byte_idx])
             trace_matrix = align_trace_with_clock(trace_matrix, clock_matrix)
