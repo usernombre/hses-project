@@ -106,6 +106,7 @@ def recover_key(dataset_dir: Path, clock_present: bool) -> tuple[np.ndarray, pd.
     traces = list_files(dataset_dir, "trace")
     clocks = None
     if clock_present:
+        print("Taking into account the clock for computations")
         clocks = list_files(dataset_dir, "clock")
 
     if len(traces) < 16:
@@ -117,8 +118,8 @@ def recover_key(dataset_dir: Path, clock_present: bool) -> tuple[np.ndarray, pd.
     for byte_idx in range(16):
         print(f"Processing byte {byte_idx:2d}")
         trace_matrix = load_trace(traces[byte_idx])
+        print(trace_matrix)
         if clock_present:
-            print("Taking into accout the clock for computations")
             clock_matrix = load_trace(clocks[byte_idx])
             trace_matrix = align_trace_with_clock(trace_matrix, clock_matrix)
         if trace_matrix.shape[0] != cleartext.shape[0]:
