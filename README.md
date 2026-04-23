@@ -42,5 +42,5 @@ In our case we placed the contents of dataset2.zip in a directory called dataset
 retrieve the key of the second exercise:
 
 ```bash
-python -m cpa_aes.cli --dataset-dir dataset2 --output-csv outputs/dataset2_cpa_results.csv
+python -m cpa_aes.cli --dataset-dir dataset2 --output-csv outputs/dataset2_cpa_results.csv --clock
 ```
