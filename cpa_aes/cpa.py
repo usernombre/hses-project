@@ -109,9 +109,6 @@ def recover_key(dataset_dir: Path, clock_present: bool) -> tuple[np.ndarray, pd.
         print("Taking into account the clock for computations")
         clocks = list_files(dataset_dir, "clock")
 
-    if len(traces) < 16:
-        raise ValueError(f"Expected 16 trace files, found {len(traces)}")
-
     results: list[ByteResult] = []
     key = np.zeros(16, dtype=np.uint8)
 
@@ -121,10 +118,6 @@ def recover_key(dataset_dir: Path, clock_present: bool) -> tuple[np.ndarray, pd.
         if clock_present:
             clock_matrix = load_trace(clocks[byte_idx])
             trace_matrix = align_trace_with_clock(trace_matrix, clock_matrix)
-        if trace_matrix.shape[0] != cleartext.shape[0]:
-            raise ValueError(
-                f"Trace rows ({trace_matrix.shape[0]}) do not match cleartext rows ({cleartext.shape[0]})"
-            )
         result = attack_one_byte(cleartext[:, byte_idx], trace_matrix, byte_idx)
         results.append(result)
         key[byte_idx] = np.uint8(result.key_guess)
