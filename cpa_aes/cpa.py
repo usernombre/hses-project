@@ -53,7 +53,7 @@ def leakage_model(plaintext_byte_column: np.ndarray, key_guess: int) -> np.ndarr
     return HAMMING_WEIGHT[sbox_out].astype(np.float32)
 
 def pearson_against_trace_matrix(models: np.ndarray, trace_matrix: np.ndarray) -> np.ndarray:
-    """Compute Pearson correlation of one model vector against all trace samples."""
+    """Compute Pearson correlation."""
     models_centered = models - models.mean(axis=0, keepdims=True)
     trace_centered = trace_matrix - trace_matrix.mean(axis=0, keepdims=True)
 
