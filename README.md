@@ -4,7 +4,7 @@ Project made by Irene Cerván, Pablo Esteban, Andreea Kapás, Oriol López Petit
 
 ## Installation
 
-First craete a virtual environment and use it with: 
+First create a virtual environment and use it with: 
 
 ```bash
 python -m venv .venv
