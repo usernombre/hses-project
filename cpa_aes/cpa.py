@@ -52,14 +52,17 @@ def leakage_model(plaintext_byte_column: np.ndarray, key_guess: int) -> np.ndarr
     sbox_out = AES_SBOX[sbox_in]
     return HAMMING_WEIGHT[sbox_out].astype(np.float32)
 
-def pearson_against_trace_matrix(model_values: np.ndarray, trace_matrix: np.ndarray) -> np.ndarray:
+def pearson_against_trace_matrix(models: np.ndarray, trace_matrix: np.ndarray) -> np.ndarray:
     """Compute Pearson correlation of one model vector against all trace samples."""
-    model_centered = model_values - model_values.mean()
+    models_centered = models - models.mean(axis=0, keepdims=True)
     trace_centered = trace_matrix - trace_matrix.mean(axis=0, keepdims=True)
 
-    numerator = model_centered @ trace_centered
-    denom = np.sqrt(np.sum(model_centered * model_centered) * np.sum(trace_centered * trace_centered, axis=0))
+    numerator = models_centered.T @ trace_centered
+    model_energy = np.sum(models_centered * models_centered, axis=0)
+    trace_energy = np.sum(trace_centered * trace_centered, axis=0)
+    denom = np.sqrt(np.outer(model_energy, trace_energy))
 
+    corr = None
     with np.errstate(divide="ignore", invalid="ignore"):
         corr = np.divide(numerator, denom, out=np.zeros_like(numerator), where=denom > 0)
     return corr
@@ -70,17 +73,7 @@ def attack_one_byte(plaintext_column: np.ndarray, trace_matrix: np.ndarray, byte
     sbox_in = np.bitwise_xor(plaintext_column[:, None], guesses[None, :])
     models = HAMMING_WEIGHT[AES_SBOX[sbox_in]].astype(np.float32)
 
-    models_centered = models - models.mean(axis=0, keepdims=True)
-    trace_centered = trace_matrix - trace_matrix.mean(axis=0, keepdims=True)
-
-    numerator = models_centered.T @ trace_centered
-    model_energy = np.sum(models_centered * models_centered, axis=0)
-    trace_energy = np.sum(trace_centered * trace_centered, axis=0)
-    denom = np.sqrt(np.outer(model_energy, trace_energy))
-
-    with np.errstate(divide="ignore", invalid="ignore"):
-        corr = np.divide(numerator, denom, out=np.zeros_like(numerator), where=denom > 0)
-
+    corr = pearson_against_trace_matrix(models, trace_matrix)
     abs_corr = np.abs(corr)
     best_samples = np.argmax(abs_corr, axis=1).astype(np.int32)
     best_scores = abs_corr[np.arange(256), best_samples].astype(np.float32)
