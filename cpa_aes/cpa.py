@@ -46,12 +46,6 @@ class ByteResult:
     second_best_abs_correlation: float
     confidence_margin: float
 
-def leakage_model(plaintext_byte_column: np.ndarray, key_guess: int) -> np.ndarray:
-    """Predict Hamming-weight leakage for one byte guess after first-round AES SBox."""
-    sbox_in = np.bitwise_xor(plaintext_byte_column, np.uint8(key_guess))
-    sbox_out = AES_SBOX[sbox_in]
-    return HAMMING_WEIGHT[sbox_out].astype(np.float32)
-
 def pearson_against_trace_matrix(models: np.ndarray, trace_matrix: np.ndarray) -> np.ndarray:
     """Compute Pearson correlation."""
     models_centered = models - models.mean(axis=0, keepdims=True)
